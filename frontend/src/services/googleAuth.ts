@@ -1,4 +1,4 @@
-import { GoogleAuth } from '@codetrix-studio/capacitor-google-auth';
+import { SocialLogin, type GoogleLoginResponseOnline } from '@capgo/capacitor-social-login';
 
 // Real Google OAuth 2.0 Web Client ID registered in Google Cloud Console
 export const GOOGLE_WEB_CLIENT_ID = '691672483080-tnadcremhnfqu9nsos0g3thimhhvvp5d.apps.googleusercontent.com';
@@ -19,19 +19,24 @@ export const isGoogleAuthConfigured = (): boolean => {
   return Boolean(getGoogleClientId());
 };
 
-export const initGoogleAuth = () => {
+export const initGoogleAuth = async (): Promise<void> => {
   if (initialized) return;
   const clientId = getGoogleClientId();
+  if (!clientId) {
+    throw new Error('Google OAuth Client ID is missing. Please check your configuration.');
+  }
 
   try {
-    GoogleAuth.initialize({
-      clientId: clientId,
-      scopes: ['profile', 'email'],
-      grantOfflineAccess: false,
+    await SocialLogin.initialize({
+      google: {
+        webClientId: clientId,
+        mode: 'online',
+      },
     });
     initialized = true;
-  } catch (e) {
-    console.warn('GoogleAuth initialization warning:', e);
+  } catch (e: any) {
+    console.error('SocialLogin initialization error:', e);
+    throw new Error(e?.message || 'Failed to initialize Google Sign-In SDK.');
   }
 };
 
@@ -46,14 +51,19 @@ export const signInWithGoogleToken = async (): Promise<string> => {
   }
 
   isSigningIn = true;
-  initGoogleAuth();
-
   try {
-    const response = await GoogleAuth.signIn();
-    // Retrieve ID Token from GoogleAuth response
-    const idToken = response.authentication?.idToken || (response as any).idToken;
+    await initGoogleAuth();
+
+    const response = await SocialLogin.login({
+      provider: 'google',
+      options: {
+        scopes: ['profile', 'email'],
+      },
+    }) as { provider: 'google'; result: GoogleLoginResponseOnline };
+
+    const idToken = response.result.idToken;
     if (!idToken) {
-      throw new Error('Google Sign-In completed, but no ID Token was provided by Google Play Services.');
+      throw new Error('Google Sign-In completed, but no ID Token was provided.');
     }
     return idToken;
   } catch (error: any) {
@@ -64,8 +74,10 @@ export const signInWithGoogleToken = async (): Promise<string> => {
     if (
       msg.includes('popup_closed') ||
       msg.includes('canceled') ||
+      msg.includes('cancelled') ||
       msg.includes('12501') ||
-      msg.includes('The user canceled')
+      msg.includes('The user canceled') ||
+      msg.includes('User cancelled')
     ) {
       throw new Error('Google Sign-In was canceled.');
     }
@@ -97,7 +109,7 @@ export const signInWithGoogleToken = async (): Promise<string> => {
 
 export const signOutGoogle = async (): Promise<void> => {
   try {
-    await GoogleAuth.signOut();
+    await SocialLogin.logout({ provider: 'google' });
   } catch (e) {
     // Ignore sign out errors if user wasn't signed in via Google SDK
   }

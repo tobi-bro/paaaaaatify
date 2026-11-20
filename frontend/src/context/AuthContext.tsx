@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User, UserStats, UserSettings } from '../types';
 import { api } from '../services/api';
+import { signOutGoogle } from '../services/googleAuth';
 
 interface AuthContextType {
   user: User | null;
@@ -91,6 +92,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     try {
       await api.auth.logout().catch(() => {});
+      await signOutGoogle().catch(() => {});
     } finally {
       localStorage.removeItem('paaaaaatify_access_token');
       localStorage.removeItem('paaaaaatify_refresh_token');

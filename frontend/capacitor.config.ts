@@ -25,11 +25,13 @@ const config: CapacitorConfig = {
       androidScaleType: 'CENTER_CROP',
       showSpinner: false
     },
-    GoogleAuth: {
-      scopes: ['profile', 'email'],
-      serverClientId: googleClientId,
-      clientId: googleClientId,
-      forceCodeForRefreshToken: false
+    SocialLogin: {
+      providers: {
+        google: true,
+        facebook: false,
+        apple: false,
+        twitter: false
+      }
     }
   }
 };
